@@ -1,36 +1,36 @@
-import asyncio
-from bleak import BleakClient
+from jnius import autoclass, cast
+from time import sleep
 
-# Replace with your LED strip MAC address
-MAC = "41:42:AB:CD:01:52"
+# Android classes
+PythonActivity = autoclass('org.kivy.android.PythonActivity')
+Context = autoclass('android.content.Context')
+BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+BluetoothManager = autoclass('android.bluetooth.BluetoothManager')
 
-# FFE1 characteristic
-CHAR_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
+# Get Bluetooth service
+activity = PythonActivity.mActivity
+bluetooth_service = cast(BluetoothManager, activity.getSystemService(Context.BLUETOOTH_SERVICE))
+adapter = bluetooth_service.getAdapter()
 
-# Commands
-CMD_ON  = bytes.fromhex("7BFF0401FFFFFFFFBF")
-CMD_OFF = bytes.fromhex("7BFF0400FFFFFFFFBF")
+# Enable adapter if not already
+if not adapter.isEnabled():
+    adapter.enable()
+    print("🔌 Bluetooth enabled")
 
-async def main():
-    print(f"🔌 Connecting to {MAC}...")
-    async with BleakClient(MAC) as client:
-        if await client.is_connected():
-            print("✅ Connected!")
+# Callback for scan results
+ScanCallback = autoclass('android.bluetooth.le.ScanCallback')
+ScanResult = autoclass('android.bluetooth.le.ScanResult')
 
-            # Turn ON LED
-            print("💡 Sending ON command...")
-            await client.write_gatt_char(CHAR_UUID, CMD_ON, response=False)
+class MyScanCallback(ScanCallback):
+    def onScanResult(self, callbackType, result):
+        device = result.getDevice()
+        print(f"Found device: {device.getName()} - {device.getAddress()}")
 
-            # Wait 2 seconds
-            await asyncio.sleep(2)
-
-            # Turn OFF LED
-            print("🌑 Sending OFF command...")
-            await client.write_gatt_char(CHAR_UUID, CMD_OFF, response=False)
-
-            print("🏁 Test finished!")
-
-        else:
-            print("❌ Failed to connect.")
-
-asyncio.run(main())
+# Start scanning
+scanner = adapter.getBluetoothLeScanner()
+callback = MyScanCallback()
+scanner.startScan(callback)
+print("🔎 Scanning for 10 seconds...")
+sleep(10)
+scanner.stopScan(callback)
+print("✅ Scan complete")
