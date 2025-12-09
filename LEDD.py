@@ -1,35 +1,36 @@
 import asyncio
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from bleak import BleakClient
 
+# Replace with your LED strip MAC address
 MAC = "41:42:AB:CD:01:52"
+
+# FFE1 characteristic
 CHAR_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
 
+# Commands
 CMD_ON  = bytes.fromhex("7BFF0401FFFFFFFFBF")
 CMD_OFF = bytes.fromhex("7BFF0400FFFFFFFFBF")
 
-app = FastAPI()
-
-templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-async def send_ble(payload: bytes):
+async def main():
+    print(f"🔌 Connecting to {MAC}...")
     async with BleakClient(MAC) as client:
-        await client.write_gatt_char(CHAR_UUID, payload, response=False)
+        if await client.is_connected():
+            print("✅ Connected!")
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+            # Turn ON LED
+            print("💡 Sending ON command...")
+            await client.write_gatt_char(CHAR_UUID, CMD_ON, response=False)
 
-@app.get("/on")
-async def led_on():
-    await send_ble(CMD_ON)
-    return {"status": "LED ON"}
+            # Wait 2 seconds
+            await asyncio.sleep(2)
 
-@app.get("/off")
-async def led_off():
-    await send_ble(CMD_OFF)
-    return {"status": "LED OFF"}
+            # Turn OFF LED
+            print("🌑 Sending OFF command...")
+            await client.write_gatt_char(CHAR_UUID, CMD_OFF, response=False)
+
+            print("🏁 Test finished!")
+
+        else:
+            print("❌ Failed to connect.")
+
+asyncio.run(main())
