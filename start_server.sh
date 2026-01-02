@@ -3,4 +3,4 @@
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "$BASE_DIR/app" || exit 1
-python3 app.py
+python app.py
