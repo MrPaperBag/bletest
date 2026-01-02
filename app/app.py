@@ -118,4 +118,4 @@ def pull_and_exit():
 
 if __name__ == "__main__":
     # PORT 80 (won't actually bind in Termux)
-    app.run(host="0.0.0.0", port=80)
+    app.run(host="0.0.0.0", port=8080)
