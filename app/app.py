@@ -2,11 +2,13 @@ from flask import Flask, request, render_template_string, redirect, url_for, sen
 import subprocess
 import requests
 import os
+import sys
 
 ESP_URL = "http://192.168.1.8/color"
 
-BASE_DIR = os.getcwd()              # ← this is pwd
+BASE_DIR = os.getcwd()
 PHOTO_PATH = os.path.join(BASE_DIR, "PHOTO.jpg")
+PULL_FILE = os.path.join(BASE_DIR, "shouldipull")
 
 app = Flask(__name__)
 
@@ -18,21 +20,21 @@ HTML = """
 <title>ESP RGB Control</title>
 <style>
 body {
-    font-family: Arial;
-    background: #111;
-    color: #0f0;
-    text-align: center;
+    background:#111;
+    color:#0f0;
+    font-family:Arial;
+    text-align:center;
 }
-input[type=range] { width: 90%; }
+input[type=range] { width:90%; }
 button {
-    font-size: 20px;
-    padding: 10px 20px;
-    margin: 10px;
+    font-size:20px;
+    padding:10px 20px;
+    margin:10px;
 }
 img {
-    width: 90%;
-    margin-top: 15px;
-    border: 2px solid #0f0;
+    width:90%;
+    margin-top:15px;
+    border:2px solid #0f0;
 }
 </style>
 </head>
@@ -40,7 +42,7 @@ img {
 
 <h2>RGB LED Control</h2>
 
-<form action="/set" method="get">
+<form action="/set">
 R<br><input type="range" name="r" min="0" max="255" value="255"><br>
 G<br><input type="range" name="g" min="0" max="255" value="0"><br>
 B<br><input type="range" name="b" min="0" max="255" value="255"><br><br>
@@ -48,18 +50,24 @@ B<br><input type="range" name="b" min="0" max="255" value="255"><br><br>
 Brightness<br>
 <input type="range" name="br" min="0" max="100" value="100"><br><br>
 
-<button type="submit">SET</button>
+<button>SET</button>
 </form>
 
 <hr>
 
 <form action="/photo" method="post">
-<button type="submit">GET IMAGE</button>
+<button>GET IMAGE</button>
 </form>
 
 {% if photo %}
 <img src="/photo.jpg">
 {% endif %}
+
+<hr>
+
+<form action="/pull" method="post">
+<button style="color:red;">PULL</button>
+</form>
 
 </body>
 </html>
@@ -84,17 +92,14 @@ def set_color():
 
     try:
         requests.get(url, timeout=2)
-    except Exception as e:
-        print("ESP request failed:", e)
-    take_photo()
+    except:
+        pass
+
     return redirect(url_for("index"))
 
 @app.route("/photo", methods=["POST"])
 def take_photo():
-    subprocess.run(
-        ["termux-camera-photo", PHOTO_PATH],
-        check=False
-    )
+    subprocess.run(["termux-camera-photo", PHOTO_PATH], check=False)
     return redirect(url_for("index"))
 
 @app.route("/photo.jpg")
@@ -103,5 +108,14 @@ def serve_photo():
         return send_file(PHOTO_PATH, mimetype="image/jpeg")
     return "No photo", 404
 
+@app.route("/pull", methods=["POST"])
+def pull_and_exit():
+    with open(PULL_FILE, "w") as f:
+        f.write("yes")
+
+    # immediate hard exit (no Flask cleanup)
+    os._exit(0)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    # PORT 80 (won't actually bind in Termux)
+    app.run(host="0.0.0.0", port=80)
