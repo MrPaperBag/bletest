@@ -1,0 +1,6 @@
+# runtime flags
+shouldistart
+shouldipull
+
+# logs
+*.log
