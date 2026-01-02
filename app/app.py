@@ -86,7 +86,7 @@ def set_color():
         requests.get(url, timeout=2)
     except Exception as e:
         print("ESP request failed:", e)
-
+    take_photo()
     return redirect(url_for("index"))
 
 @app.route("/photo", methods=["POST"])
