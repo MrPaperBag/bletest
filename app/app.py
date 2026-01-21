@@ -81,6 +81,10 @@ def index():
         photo=os.path.exists(PHOTO_PATH)
     )
 
+@app.route("/home")
+def index():
+    return "Redirecting..." 
+
 @app.route("/set")
 def set_color():
     r = int(request.args.get("r", 0))
