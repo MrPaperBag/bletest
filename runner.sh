@@ -1,6 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# Directory where this script lives
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 PULL_FILE="$BASE_DIR/shouldipull"
@@ -9,7 +8,6 @@ APP_CMD="$BASE_DIR/start_server.sh"
 
 cd "$BASE_DIR" || exit 1
 
-# Ensure control files exist (defaults = yes)
 [ -f "$START_FILE" ] || echo "yes" > "$START_FILE"
 [ -f "$PULL_FILE" ]  || echo "yes" > "$PULL_FILE"
 
@@ -21,7 +19,7 @@ while true; do
     if [ "$SHOULD_START" != "yes" ]; then
         echo "[runner] shouldistart != yes, exiting"
         exit
-
+    fi   # ✅ THIS WAS MISSING
 
     SHOULD_PULL=$(cat "$PULL_FILE")
 
