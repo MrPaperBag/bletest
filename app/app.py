@@ -83,7 +83,7 @@ def index():
 
 @app.route("/home")
 def home():
-    return "Redirecting..." 
+    return "now you are home" 
 
 @app.route("/set")
 def set_color():
