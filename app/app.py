@@ -1,13 +1,8 @@
-from flask import Flask, request, render_template_string, redirect, url_for, send_file, jsonify
+from flask import Flask, request, render_template_string, redirect, url_for, send_file
 import subprocess
 import requests
 import os
 import sys
-import socket
-import platform
-import ipaddress
-import re
-import concurrent.futures
 
 ESP_URL = "http://192.168.1.8/color"
 
@@ -121,98 +116,6 @@ def serve_photo():
 @app.route("/cwd")
 def serve_cwd():
     return os.getcwd()
-
-
-def _get_local_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-    except Exception:
-        ip = "127.0.0.1"
-    finally:
-        try:
-            s.close()
-        except Exception:
-            pass
-    return ip
-
-
-def scan_network(subnet=None, timeout=5, workers=100):
-    """Scan the local network for connected devices.
-
-    Args:
-        subnet: CIDR string (e.g. '192.168.1.0/24'). If None, uses detected IP with /24.
-        timeout: ping timeout in seconds.
-        workers: number of parallel ping workers.
-
-    Returns:
-        List of dicts: [{'ip': '192.168.1.10', 'mac': 'aa:bb:cc:dd:ee:ff'}, ...]
-    """
-    if subnet is None:
-        local_ip = _get_local_ip()
-        try:
-            net = ipaddress.ip_network(f"{local_ip}/24", strict=False)
-        except Exception:
-            net = ipaddress.ip_network("127.0.0.1/32")
-    else:
-        net = ipaddress.ip_network(subnet, strict=False)
-
-    hosts = [str(h) for h in net.hosts()]
-
-    def _ping(ip):
-        plat = platform.system().lower()
-        if plat.startswith("windows"):
-            cmd = ["ping", "-n", "1", "-w", str(int(timeout * 1000)), ip]
-        else:
-            cmd = ["ping", "-c", "1", "-W", str(int(timeout)), ip]
-        try:
-            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return ip
-        except Exception:
-            return None
-
-    # Run ping sweep
-    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
-        futures = [ex.submit(_ping, ip) for ip in hosts]
-        # wait for completion
-        for _ in concurrent.futures.as_completed(futures):
-            pass
-
-    # Parse ARP cache to get MAC addresses
-    try:
-        arp = subprocess.check_output(["arp", "-a"], stderr=subprocess.DEVNULL, universal_newlines=True)
-    except Exception:
-        arp = ""
-
-    # Regex to capture IP and MAC-like token
-    mac_pattern = re.compile(r"([0-9a-fA-F]{2}(?:[:-][0-9a-fA-F]{2}){5})")
-    ip_pattern = re.compile(r"(\d+\.\d+\.\d+\.\d+)")
-
-    devices = []
-    for line in arp.splitlines():
-        ip_m = ip_pattern.search(line)
-        mac_m = mac_pattern.search(line)
-        if ip_m and mac_m:
-            ip = ip_m.group(1)
-            mac = mac_m.group(1).replace('-', ':').lower()
-            devices.append({"ip": ip, "mac": mac})
-
-    # Deduplicate by IP preserving order
-    seen = set()
-    out = []
-    for d in devices:
-        if d["ip"] not in seen:
-            seen.add(d["ip"])
-            out.append(d)
-
-    return out
-
-
-@app.route("/scan")
-def scan_route():
-    devices = scan_network()
-    return jsonify(devices)
 
 
 
