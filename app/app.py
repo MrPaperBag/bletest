@@ -81,7 +81,7 @@ def index():
         photo=os.path.exists(PHOTO_PATH)
     )
 
-@app.route("/home")
+@app.route("/test")
 def index():
     return "Redirecting..." 
 
