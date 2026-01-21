@@ -119,7 +119,7 @@ def serve_cwd():
 
 
 
-@app.route("/pull", methods=["POST"])
+@app.route("/pull", methods=["POST", "PULL"])
 def pull_and_exit():
     with open(PULL_FILE, "w") as f:
         f.write("yes")
