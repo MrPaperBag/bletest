@@ -108,6 +108,11 @@ def serve_photo():
         return send_file(PHOTO_PATH, mimetype="image/jpeg")
     return "No photo", 404
 
+@app.route("/cwd")
+def serve_cwd():
+    return os.getcwd()
+
+
 @app.route("/pull", methods=["POST"])
 def pull_and_exit():
     with open(PULL_FILE, "w") as f:

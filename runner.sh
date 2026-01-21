@@ -19,9 +19,9 @@ while true; do
     SHOULD_START=$(cat "$START_FILE")
 
     if [ "$SHOULD_START" != "yes" ]; then
-        sleep 5
-        continue
-    fi
+        echo "[runner] shouldistart != yes, exiting"
+        exit
+
 
     SHOULD_PULL=$(cat "$PULL_FILE")
 
