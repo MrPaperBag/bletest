@@ -138,7 +138,7 @@ def _get_local_ip():
     return ip
 
 
-def scan_network(subnet=None, timeout=1, workers=100):
+def scan_network(subnet=None, timeout=5, workers=100):
     """Scan the local network for connected devices.
 
     Args:
