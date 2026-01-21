@@ -8,7 +8,8 @@ ESP_URL = "http://192.168.1.8/color"
 
 BASE_DIR = os.getcwd()
 PHOTO_PATH = os.path.join(BASE_DIR, "PHOTO.jpg")
-PULL_FILE = os.path.join(BASE_DIR, "shouldipull")
+PULL_FILE = os.path.join(BASE_DIR, "..", "shouldipull")
+
 
 app = Flask(__name__)
 
