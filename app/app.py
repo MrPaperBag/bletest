@@ -21,6 +21,17 @@ fade = {
 }
 fade_thread = None
 
+# -------- FLAG FILES --------
+SHOULD_I_PULL_FILE = "shouldipull.txt"
+SHOULD_I_START_FILE = "shouldistart.txt"
+
+def write_flag(path, value):
+    try:
+        with open(path, "w") as f:
+            f.write(value)
+    except:
+        pass
+
 
 def send_color(base, hex_color, brightness):
     try:
@@ -48,12 +59,9 @@ def fade_worker(mode, duration, base):
     start = int(last_brightness)
     target = 0 if mode == "down" else 100
 
-    step_size = 5  # ← change to 10 if you want even more stability
+    step_size = 5
 
-    if mode == "down":
-        step = -step_size
-    else:
-        step = step_size
+    step = -step_size if mode == "down" else step_size
 
     steps = max(1, abs(target - start) // step_size)
     step_delay = duration / steps
@@ -241,6 +249,20 @@ def remove_timer():
     return jsonify({"status": "removed"})
 
 
+# -------- NEW PANEL ROUTES --------
+
+@app.route("/pull")
+def pull():
+    write_flag(SHOULD_I_PULL_FILE, "yes")
+    return jsonify({"shouldipull": "yes"})
+
+
+@app.route("/off_panel")
+def off_panel():
+    write_flag(SHOULD_I_START_FILE, "no")
+    return jsonify({"shouldistart": "no"})
+
+
 HTML = """
 <!DOCTYPE html>
 <html>
@@ -260,11 +282,26 @@ body {
     height:100vh;
 }
 
+.container {
+    display:flex;
+    gap:16px;
+}
+
 .card {
     background:#161b22;
     padding:25px;
     border-radius:16px;
     width:360px;
+}
+
+.side {
+    background:#161b22;
+    padding:20px;
+    border-radius:16px;
+    width:140px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
 }
 
 input, button {
@@ -293,6 +330,8 @@ button { cursor:pointer; color:white; }
 </style>
 </head>
 <body>
+
+<div class="container">
 
 <div class="card">
 <h3>ESP Light</h3>
@@ -333,6 +372,13 @@ button { cursor:pointer; color:white; }
 <div id="timerList"></div>
 </div>
 
+<div class="side">
+<button class="off" onclick="panelOff()">OFF</button>
+<button class="on" onclick="panelPull()">PULL</button>
+</div>
+
+</div>
+
 <script>
 function baseURL(){
     return document.getElementById("urlBox").value.trim();
@@ -354,6 +400,14 @@ function startFade(mode){
         : document.getElementById("fadeDown").value;
 
     fetch(`/fade?mode=${mode}&duration=${duration}&url=${baseURL()}`);
+}
+
+function panelPull(){
+    fetch("/pull");
+}
+
+function panelOff(){
+    fetch("/off_panel");
 }
 
 function updateFade(){
@@ -419,5 +473,9 @@ def home():
 
 
 if __name__ == "__main__":
+    # Defaults at startup (opposite as requested)
+    write_flag(SHOULD_I_PULL_FILE, "no")
+    write_flag(SHOULD_I_START_FILE, "yes")
+
     print("Open: http://localhost:5000")
     app.run(host="0.0.0.0", port=5000)
