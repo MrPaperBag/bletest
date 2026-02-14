@@ -3,6 +3,8 @@ import threading
 import time
 import requests
 import os
+import signal
+
 
 DEFAULT_URL = "http://192.168.1.9"
 
@@ -39,9 +41,9 @@ def write_flag(path, value):
         print(f"[FLAG ERROR] {e}")
 
 def shutdown_server():
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func:
-        func()
+    print("[SERVER] Shutting down...")
+    os.kill(os.getpid(), signal.SIGTERM)
+
 
 
 def send_color(base, hex_color, brightness):
