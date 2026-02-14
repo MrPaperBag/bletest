@@ -14,7 +14,7 @@ timers = {}
 timer_id_counter = 0
 lock = threading.Lock()
 
-last_color = "#ffffff"
+last_color = "#ff0000"
 last_brightness = 100
 
 fade = {
