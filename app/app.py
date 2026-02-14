@@ -2,6 +2,7 @@ from flask import Flask, Response, request, jsonify
 import threading
 import time
 import requests
+import os
 
 DEFAULT_URL = "http://192.168.1.9"
 
@@ -21,16 +22,21 @@ fade = {
 }
 fade_thread = None
 
-# -------- FLAG FILES --------
-SHOULD_I_PULL_FILE = "shouldipull.txt"
-SHOULD_I_START_FILE = "shouldistart.txt"
+# ---------- FILE FLAGS (PLAIN TEXT, ABSOLUTE PATH) ----------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+SHOULD_I_PULL_FILE = os.path.join(BASE_DIR, "shouldipull")
+SHOULD_I_START_FILE = os.path.join(BASE_DIR, "shouldistart")
 
 def write_flag(path, value):
     try:
         with open(path, "w") as f:
-            f.write(value)
-    except:
-        pass
+            f.write(str(value))
+            f.flush()
+            os.fsync(f.fileno())
+        print(f"[FLAG WRITE] {path} = {value}")
+    except Exception as e:
+        print(f"[FLAG ERROR] {e}")
 
 
 def send_color(base, hex_color, brightness):
@@ -60,7 +66,6 @@ def fade_worker(mode, duration, base):
     target = 0 if mode == "down" else 100
 
     step_size = 5
-
     step = -step_size if mode == "down" else step_size
 
     steps = max(1, abs(target - start) // step_size)
@@ -249,18 +254,18 @@ def remove_timer():
     return jsonify({"status": "removed"})
 
 
-# -------- NEW PANEL ROUTES --------
+# ---------- PANEL ROUTES (PLAIN TEXT RESPONSE) ----------
 
 @app.route("/pull")
 def pull():
     write_flag(SHOULD_I_PULL_FILE, "yes")
-    return jsonify({"shouldipull": "yes"})
+    return "OK"
 
 
 @app.route("/off_panel")
 def off_panel():
     write_flag(SHOULD_I_START_FILE, "no")
-    return jsonify({"shouldistart": "no"})
+    return "OK"
 
 
 HTML = """
@@ -473,7 +478,7 @@ def home():
 
 
 if __name__ == "__main__":
-    # Defaults at startup (opposite as requested)
+    # Defaults on startup (plain text)
     write_flag(SHOULD_I_PULL_FILE, "no")
     write_flag(SHOULD_I_START_FILE, "yes")
 
