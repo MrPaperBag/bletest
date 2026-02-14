@@ -72,7 +72,7 @@ def fade_worker(mode, duration, base):
 
     start = int(last_brightness)
     target = 0 if mode == "down" else 100
-    step_size = 5
+    step_size = 1
     step = -step_size if mode == "down" else step_size
 
     steps = max(1, abs(target - start) // step_size)
