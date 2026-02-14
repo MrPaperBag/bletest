@@ -20,8 +20,8 @@ last_brightness = 100
 # ---------- FILE FLAGS ----------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-SHOULD_I_PULL_FILE = os.path.join(BASE_DIR, "shouldipull.txt")
-SHOULD_I_START_FILE = os.path.join(BASE_DIR, "shouldistart.txt")
+SHOULD_I_PULL_FILE = os.path.join(BASE_DIR, "shouldipull")
+SHOULD_I_START_FILE = os.path.join(BASE_DIR, "shouldistart")
 
 def write_flag(path, value):
     try:
