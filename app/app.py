@@ -4,7 +4,7 @@ import time
 import requests
 import os
 import signal
-
+import termux   # <-- as requested
 
 DEFAULT_URL = "http://192.168.1.9"
 
@@ -17,18 +17,11 @@ lock = threading.Lock()
 last_color = "#ffffff"
 last_brightness = 100
 
-fade = {
-    "mode": None,
-    "end": 0,
-    "stop": False
-}
-fade_thread = None
-
 # ---------- FILE FLAGS ----------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-SHOULD_I_PULL_FILE = os.path.join(BASE_DIR, "shouldipull")
-SHOULD_I_START_FILE = os.path.join(BASE_DIR, "shouldistart")
+SHOULD_I_PULL_FILE = os.path.join(BASE_DIR, "shouldipull.txt")
+SHOULD_I_START_FILE = os.path.join(BASE_DIR, "shouldistart.txt")
 
 def write_flag(path, value):
     try:
@@ -45,7 +38,6 @@ def shutdown_server():
     os.kill(os.getpid(), signal.SIGTERM)
 
 
-
 def send_color(base, hex_color, brightness):
     try:
         brightness = max(0, min(100, int(brightness)))
@@ -55,81 +47,12 @@ def send_color(base, hex_color, brightness):
         pass
 
 
-def stop_fade():
-    fade["stop"] = True
-    fade["mode"] = None
-
-
-def fade_worker(mode, duration, base):
-    global last_brightness
-
-    fade["stop"] = False
-    fade["mode"] = mode
-    fade["end"] = time.time() + duration
-
-    duration = max(1, duration)
-
-    start = int(last_brightness)
-    target = 0 if mode == "down" else 100
-
-    step_size = 5
-    step = -step_size if mode == "down" else step_size
-
-    steps = max(1, abs(target - start) // step_size)
-    step_delay = duration / steps
-
-    current = start
-
-    while True:
-        if fade["stop"]:
-            return
-
-        current += step
-
-        if mode == "down" and current <= target:
-            current = target
-        if mode == "up" and current >= target:
-            current = target
-
-        send_color(base, last_color, current)
-        last_brightness = current
-
-        if current == target:
-            break
-
-        time.sleep(step_delay)
-
-    if mode == "down":
-        send_color(base, "#000000", 0)
-        last_brightness = 0
-    else:
-        send_color(base, last_color, 100)
-        last_brightness = 100
-
-    fade["mode"] = None
-
-
-def start_fade(mode, duration, base):
-    global fade_thread
-    stop_fade()
-    time.sleep(0.05)
-
-    fade_thread = threading.Thread(
-        target=fade_worker,
-        args=(mode, duration, base),
-        daemon=True
-    )
-    fade_thread.start()
-
-
 def timer_thread(tid, delay, action, base):
     time.sleep(delay)
 
     with lock:
         if tid not in timers:
             return
-
-    stop_fade()
 
     if action == "on":
         send_color(base, last_color, last_brightness or 100)
@@ -143,8 +66,6 @@ def timer_thread(tid, delay, action, base):
 @app.route("/turn_on")
 def turn_on():
     global last_color, last_brightness
-
-    stop_fade()
 
     base = request.args.get("url", DEFAULT_URL)
     color = request.args.get("color") or last_color
@@ -160,48 +81,10 @@ def turn_on():
 @app.route("/turn_off")
 def turn_off():
     global last_brightness
-    stop_fade()
     base = request.args.get("url", DEFAULT_URL)
     send_color(base, "#000000", 0)
     last_brightness = 0
     return jsonify({"status": "off"})
-
-
-@app.route("/fade")
-def fade_api():
-    mode = request.args.get("mode")
-    duration = int(request.args.get("duration", 30))
-    base = request.args.get("url", DEFAULT_URL)
-
-    start_fade(mode, duration, base)
-    return jsonify({"status": "started"})
-
-
-@app.route("/stop_fade")
-def stop_fade_api():
-    stop_fade()
-    return jsonify({"status": "stopped"})
-
-
-@app.route("/fade_status")
-def fade_status():
-    if fade["mode"] is None:
-        return jsonify(None)
-
-    remaining = int(fade["end"] - time.time())
-    if remaining < 0:
-        remaining = 0
-
-    return jsonify({
-        "mode": fade["mode"],
-        "remaining": remaining,
-        "brightness": int(last_brightness)
-    })
-
-
-@app.route("/brightness")
-def brightness_status():
-    return jsonify({"brightness": int(last_brightness)})
 
 
 @app.route("/add_timer")
@@ -211,8 +94,6 @@ def add_timer():
     delay = int(request.args.get("delay", 0))
     action = request.args.get("action")
     base = request.args.get("url", DEFAULT_URL)
-
-    stop_fade()
 
     with lock:
         timer_id_counter += 1
@@ -261,20 +142,36 @@ def remove_timer():
     return jsonify({"status": "removed"})
 
 
+# -------- BATTERY ENDPOINT --------
+
+@app.route("/battery")
+def battery():
+    try:
+        data = termux.API.battery()
+        info = data[1]   # second item = actual battery dict
+
+        pretty = "\n".join([f"{k}: {v}" for k, v in info.items()])
+        return pretty
+    except Exception as e:
+        return f"Battery error: {e}"
+
+
 # -------- PANEL ROUTES (WRITE + EXIT) --------
 
 @app.route("/pull")
 def pull():
     write_flag(SHOULD_I_PULL_FILE, "yes")
-    threading.Timer(0.3, shutdown_server).start()
-    return "OK - pulling and shutting down"
+    time.sleep(0.2)
+    shutdown_server()
+    return "OK"
 
 
 @app.route("/off_panel")
 def off_panel():
     write_flag(SHOULD_I_START_FILE, "no")
-    threading.Timer(0.3, shutdown_server).start()
-    return "OK - off and shutting down"
+    time.sleep(0.2)
+    shutdown_server()
+    return "OK"
 
 
 HTML = """
@@ -318,6 +215,13 @@ body {
     justify-content:center;
 }
 
+.battery {
+    background:#161b22;
+    padding:20px;
+    border-radius:16px;
+    width:220px;
+}
+
 input, button {
     width:100%;
     margin:6px 0;
@@ -330,7 +234,6 @@ button { cursor:pointer; color:white; }
 
 .on { background:#238636; }
 .off { background:#da3633; }
-.fade { background:#6f42c1; }
 .timer { background:#30363d; }
 
 .row {
@@ -363,18 +266,6 @@ button { cursor:pointer; color:white; }
 
 <hr>
 
-<h4>Fade</h4>
-
-<input id="fadeUp" placeholder="Fade IN seconds">
-<button class="fade" onclick="startFade('up')">Fade In</button>
-
-<input id="fadeDown" placeholder="Fade OUT seconds">
-<button class="fade" onclick="startFade('down')">Fade Out</button>
-
-<div id="fadeList"></div>
-
-<hr>
-
 <h4>Timers</h4>
 
 <input id="onDelay" placeholder="Turn ON after seconds">
@@ -389,6 +280,11 @@ button { cursor:pointer; color:white; }
 <div class="side">
 <button class="off" onclick="panelOff()">OFF</button>
 <button class="on" onclick="panelPull()">PULL</button>
+</div>
+
+<div class="battery">
+<h3>Battery</h3>
+<pre id="batteryData">Loading...</pre>
 </div>
 
 </div>
@@ -408,39 +304,12 @@ function turnOff(){
     fetch(`/turn_off?url=${baseURL()}`);
 }
 
-function startFade(mode){
-    const duration = mode==='up'
-        ? document.getElementById("fadeUp").value
-        : document.getElementById("fadeDown").value;
-
-    fetch(`/fade?mode=${mode}&duration=${duration}&url=${baseURL()}`);
-}
-
 function panelPull(){
     fetch("/pull");
 }
 
 function panelOff(){
     fetch("/off_panel");
-}
-
-function updateFade(){
-    fetch("/fade_status")
-    .then(r=>r.json())
-    .then(f=>{
-        const div=document.getElementById("fadeList");
-        div.innerHTML="";
-        if(f){
-            div.innerHTML=`
-                <div class="row">
-                    <span>
-                        Fading ${f.mode} (${f.remaining}s)<br>
-                        Brightness: ${f.brightness}
-                    </span>
-                    <button onclick="fetch('/stop_fade')">X</button>
-                </div>`;
-        }
-    });
 }
 
 function addTimer(action){
@@ -472,10 +341,17 @@ function updateTimers(){
     });
 }
 
-setInterval(()=>{
-    updateTimers();
-    updateFade();
-},1000);
+function updateBattery(){
+    fetch("/battery")
+    .then(r=>r.text())
+    .then(text=>{
+        document.getElementById("batteryData").textContent = text;
+    });
+}
+
+setInterval(updateTimers, 1000);
+setInterval(updateBattery, 5000);
+updateBattery();
 </script>
 </body>
 </html>
