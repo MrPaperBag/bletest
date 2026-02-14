@@ -22,7 +22,7 @@ fade = {
 }
 fade_thread = None
 
-# ---------- FILE FLAGS (PLAIN TEXT, ABSOLUTE PATH) ----------
+# ---------- FILE FLAGS ----------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SHOULD_I_PULL_FILE = os.path.join(BASE_DIR, "shouldipull")
@@ -37,6 +37,11 @@ def write_flag(path, value):
         print(f"[FLAG WRITE] {path} = {value}")
     except Exception as e:
         print(f"[FLAG ERROR] {e}")
+
+def shutdown_server():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func:
+        func()
 
 
 def send_color(base, hex_color, brightness):
@@ -254,18 +259,20 @@ def remove_timer():
     return jsonify({"status": "removed"})
 
 
-# ---------- PANEL ROUTES (PLAIN TEXT RESPONSE) ----------
+# -------- PANEL ROUTES (WRITE + EXIT) --------
 
 @app.route("/pull")
 def pull():
     write_flag(SHOULD_I_PULL_FILE, "yes")
-    return "OK"
+    threading.Timer(0.3, shutdown_server).start()
+    return "OK - pulling and shutting down"
 
 
 @app.route("/off_panel")
 def off_panel():
     write_flag(SHOULD_I_START_FILE, "no")
-    return "OK"
+    threading.Timer(0.3, shutdown_server).start()
+    return "OK - off and shutting down"
 
 
 HTML = """
@@ -478,7 +485,6 @@ def home():
 
 
 if __name__ == "__main__":
-    # Defaults on startup (plain text)
     write_flag(SHOULD_I_PULL_FILE, "no")
     write_flag(SHOULD_I_START_FILE, "yes")
 
