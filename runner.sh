@@ -2,8 +2,8 @@
 
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-PULL_FILE="$BASE_DIR/shouldipull"
-START_FILE="$BASE_DIR/shouldistart"
+PULL_FILE="$BASE_DIR/app/shouldipull"
+START_FILE="$BASE_DIR/app/shouldistart"
 APP_CMD="$BASE_DIR/start_server.sh"
 
 cd "$BASE_DIR" || exit 1
