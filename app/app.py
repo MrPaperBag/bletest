@@ -4,7 +4,7 @@ import time
 import requests
 import os
 import signal
-import termux   # <-- as requested
+import termux
 
 DEFAULT_URL = "http://192.168.1.9"
 
@@ -147,13 +147,16 @@ def remove_timer():
 @app.route("/battery")
 def battery():
     try:
-        data = termux.API.battery()
-        info = data[1]   # second item = actual battery dict
+        data = termux.API.battery()[1]
 
-        pretty = "\n".join([f"{k}: {v}" for k, v in info.items()])
-        return pretty
+        return jsonify({
+            "percentage": data.get("percentage"),
+            "health": data.get("health"),
+            "temperature": data.get("temperature"),
+            "charging": data.get("plugged") != "UNPLUGGED"
+        })
     except Exception as e:
-        return f"Battery error: {e}"
+        return jsonify({"error": str(e)})
 
 
 # -------- PANEL ROUTES (WRITE + EXIT) --------
@@ -220,6 +223,35 @@ body {
     padding:20px;
     border-radius:16px;
     width:220px;
+    text-align:center;
+}
+
+.battery-big {
+    font-size:42px;
+    font-weight:bold;
+    margin:10px 0;
+}
+
+.battery-bar {
+    width:100%;
+    height:12px;
+    background:#0f141a;
+    border-radius:10px;
+    overflow:hidden;
+    margin-bottom:12px;
+}
+
+#batFill {
+    height:100%;
+    width:0%;
+    background:#2ea043;
+    transition:width 0.5s;
+}
+
+.battery-info {
+    font-size:14px;
+    line-height:1.6;
+    opacity:0.9;
 }
 
 input, button {
@@ -283,8 +315,21 @@ button { cursor:pointer; color:white; }
 </div>
 
 <div class="battery">
-<h3>Battery</h3>
-<pre id="batteryData">Loading...</pre>
+    <h3>Battery</h3>
+
+    <div class="battery-big">
+        <span id="batPercent">--</span>%
+    </div>
+
+    <div class="battery-bar">
+        <div id="batFill"></div>
+    </div>
+
+    <div class="battery-info">
+        <div>Health: <span id="batHealth">--</span></div>
+        <div>Temp: <span id="batTemp">--</span>°C</div>
+        <div>Status: <span id="batStatus">--</span></div>
+    </div>
 </div>
 
 </div>
@@ -343,9 +388,18 @@ function updateTimers(){
 
 function updateBattery(){
     fetch("/battery")
-    .then(r=>r.text())
-    .then(text=>{
-        document.getElementById("batteryData").textContent = text;
+    .then(r=>r.json())
+    .then(b=>{
+        if(b.error) return;
+
+        document.getElementById("batPercent").textContent = b.percentage;
+        document.getElementById("batHealth").textContent = b.health;
+        document.getElementById("batTemp").textContent = b.temperature;
+        document.getElementById("batStatus").textContent =
+            b.charging ? "Charging ⚡" : "Discharging";
+
+        document.getElementById("batFill").style.width =
+            b.percentage + "%";
     });
 }
 
