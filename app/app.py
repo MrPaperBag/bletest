@@ -224,7 +224,7 @@ def battery():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ---------- CONTROL PANEL ----------
+# ---------- CONTROL ----------
 
 @app.route("/pull")
 def pull():
@@ -267,7 +267,8 @@ body {
     padding:16px;
     border-radius:16px;
     flex:1 1 260px;
-    min-width:260px;
+    min-width:0;
+    box-sizing:border-box;
 }
 
 input, button {
@@ -277,6 +278,12 @@ input, button {
     border-radius:10px;
     border:none;
     font-size:16px;
+    box-sizing:border-box;
+}
+
+input[type="range"] {
+    width:100%;
+    box-sizing:border-box;
 }
 
 button { color:white; cursor:pointer; }
@@ -382,9 +389,6 @@ button { color:white; cursor:pointer; }
 </div>
 
 <script>
-const FADE_MIN = 1;
-const FADE_MAX = 120;
-
 function baseURL(){ return document.getElementById("urlBox").value.trim(); }
 
 function turnOn(){
