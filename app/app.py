@@ -14,36 +14,25 @@ timers = {}
 timer_id_counter = 0
 lock = threading.Lock()
 
-last_color = "#ff0000"
+last_color = "#ffffff"
 last_brightness = 100
 
-fade = {
-    "mode": None,
-    "end": 0,
-    "stop": False
-}
+fade = {"mode": None, "end": 0, "stop": False}
 fade_thread = None
 
-# ---------- FILE FLAGS ----------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 SHOULD_I_PULL_FILE = os.path.join(BASE_DIR, "shouldipull")
 SHOULD_I_START_FILE = os.path.join(BASE_DIR, "shouldistart")
 
-
 def write_flag(path, value):
-    try:
-        with open(path, "w") as f:
-            f.write(str(value))
-            f.flush()
-            os.fsync(f.fileno())
-        print(f"[FLAG WRITE] {path} = {value}")
-    except Exception as e:
-        print(f"[FLAG ERROR] {e}")
+    with open(path, "w") as f:
+        f.write(str(value))
+        f.flush()
+        os.fsync(f.fileno())
+    print(f"[FLAG WRITE] {path} = {value}")
 
 def shutdown_server():
     os.kill(os.getpid(), signal.SIGTERM)
-
 
 def send_color(base, hex_color, brightness):
     try:
@@ -53,13 +42,11 @@ def send_color(base, hex_color, brightness):
     except:
         pass
 
-
-# ---------- FADE SYSTEM ----------
+# ---------- FADE ----------
 
 def stop_fade():
     fade["stop"] = True
     fade["mode"] = None
-
 
 def fade_worker(mode, duration, base):
     global last_brightness
@@ -69,10 +56,9 @@ def fade_worker(mode, duration, base):
     fade["end"] = time.time() + duration
 
     duration = max(1, duration)
-
     start = int(last_brightness)
     target = 0 if mode == "down" else 100
-    step_size = 1
+    step_size = 5
     step = -step_size if mode == "down" else step_size
 
     steps = max(1, abs(target - start) // step_size)
@@ -84,7 +70,6 @@ def fade_worker(mode, duration, base):
             return
 
         current += step
-
         if mode == "down" and current <= target:
             current = target
         if mode == "up" and current >= target:
@@ -100,7 +85,6 @@ def fade_worker(mode, duration, base):
 
     fade["mode"] = None
 
-
 def start_fade(mode, duration, base):
     global fade_thread
     stop_fade()
@@ -113,22 +97,18 @@ def start_fade(mode, duration, base):
     )
     fade_thread.start()
 
-
 @app.route("/fade")
 def fade_api():
     mode = request.args.get("mode")
     duration = int(request.args.get("duration", 30))
     base = request.args.get("url", DEFAULT_URL)
-
     start_fade(mode, duration, base)
     return jsonify({"status": "started"})
-
 
 @app.route("/stop_fade")
 def stop_fade_api():
     stop_fade()
     return jsonify({"status": "stopped"})
-
 
 @app.route("/fade_status")
 def fade_status():
@@ -136,32 +116,25 @@ def fade_status():
         return jsonify(None)
 
     remaining = int(fade["end"] - time.time())
-    if remaining < 0:
-        remaining = 0
-
     return jsonify({
         "mode": fade["mode"],
-        "remaining": remaining,
+        "remaining": max(0, remaining),
         "brightness": int(last_brightness)
     })
-
 
 # ---------- LIGHT ----------
 
 @app.route("/turn_on")
 def turn_on():
     global last_color, last_brightness
-
     base = request.args.get("url", DEFAULT_URL)
     color = request.args.get("color") or last_color
     brightness = int(request.args.get("brightness", last_brightness))
 
     last_color = color
     last_brightness = brightness
-
     send_color(base, color, brightness)
     return jsonify({"status": "on"})
-
 
 @app.route("/turn_off")
 def turn_off():
@@ -170,7 +143,6 @@ def turn_off():
     send_color(base, "#000000", 0)
     last_brightness = 0
     return jsonify({"status": "off"})
-
 
 # ---------- TIMERS ----------
 
@@ -188,11 +160,9 @@ def timer_thread(tid, delay, action, base):
     with lock:
         timers.pop(tid, None)
 
-
 @app.route("/add_timer")
 def add_timer():
     global timer_id_counter
-
     delay = int(request.args.get("delay", 0))
     action = request.args.get("action")
     base = request.args.get("url", DEFAULT_URL)
@@ -216,7 +186,6 @@ def add_timer():
 
     return jsonify({"status": "ok"})
 
-
 @app.route("/list_timers")
 def list_timers():
     now = time.time()
@@ -225,16 +194,13 @@ def list_timers():
     with lock:
         for t in timers.values():
             remaining = int(t["delay"] - (now - t["start"]))
-            if remaining < 0:
-                remaining = 0
             active.append({
                 "id": t["id"],
                 "action": t["action"],
-                "remaining": remaining
+                "remaining": max(0, remaining)
             })
 
     return jsonify(active)
-
 
 @app.route("/remove_timer")
 def remove_timer():
@@ -242,7 +208,6 @@ def remove_timer():
     with lock:
         timers.pop(tid, None)
     return jsonify({"status": "removed"})
-
 
 # ---------- BATTERY ----------
 
@@ -259,8 +224,7 @@ def battery():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
-# ---------- PANEL CONTROL ----------
+# ---------- CONTROL PANEL ----------
 
 @app.route("/pull")
 def pull():
@@ -269,14 +233,12 @@ def pull():
     shutdown_server()
     return "OK"
 
-
 @app.route("/off_panel")
 def off_panel():
     write_flag(SHOULD_I_START_FILE, "no")
     time.sleep(0.2)
     shutdown_server()
     return "OK"
-
 
 HTML = """
 <!DOCTYPE html>
@@ -291,34 +253,33 @@ body {
     background:#0e1117;
     font-family:Arial;
     color:white;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    height:100vh;
 }
 
-.container { display:flex; gap:16px; }
+.container {
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    padding:14px;
+}
 
 .card, .fadepanel, .battery, .side {
     background:#161b22;
-    padding:20px;
+    padding:16px;
     border-radius:16px;
+    flex:1 1 260px;
+    min-width:260px;
 }
-
-.card { width:320px; }
-.fadepanel { width:220px; }
-.battery { width:220px; text-align:center; }
-.side { width:140px; display:flex; flex-direction:column; justify-content:center; }
 
 input, button {
     width:100%;
-    margin:6px 0;
-    padding:10px;
-    border-radius:8px;
+    margin:8px 0;
+    padding:14px;
+    border-radius:10px;
     border:none;
+    font-size:16px;
 }
 
-button { cursor:pointer; color:white; }
+button { color:white; cursor:pointer; }
 
 .on { background:#238636; }
 .off { background:#da3633; }
@@ -328,15 +289,34 @@ button { cursor:pointer; color:white; }
 .row {
     display:flex;
     justify-content:space-between;
+    align-items:center;
     background:#0f141a;
-    padding:6px;
-    margin:4px 0;
-    border-radius:6px;
+    padding:10px;
+    margin:6px 0;
+    border-radius:8px;
 }
 
-.battery-big { font-size:42px; font-weight:bold; margin:10px 0; }
-.battery-bar { width:100%; height:12px; background:#0f141a; border-radius:10px; overflow:hidden; margin-bottom:12px; }
-#batFill { height:100%; width:0%; background:#2ea043; transition:width 0.5s; }
+.battery-big {
+    font-size:38px;
+    font-weight:bold;
+    margin:10px 0;
+}
+
+.battery-bar {
+    width:100%;
+    height:14px;
+    background:#0f141a;
+    border-radius:10px;
+    overflow:hidden;
+    margin-bottom:12px;
+}
+
+#batFill {
+    height:100%;
+    width:0%;
+    background:#2ea043;
+    transition:width 0.5s, background 0.5s;
+}
 </style>
 </head>
 <body>
@@ -360,7 +340,6 @@ button { cursor:pointer; color:white; }
 <hr>
 
 <h4>Timers</h4>
-
 <input id="onDelay" placeholder="Turn ON after seconds">
 <button class="timer" onclick="addTimer('on')">Add ON Timer</button>
 
@@ -373,10 +352,14 @@ button { cursor:pointer; color:white; }
 <div class="fadepanel">
 <h3>Fade</h3>
 
-<input id="fadeUp" placeholder="Fade IN seconds">
+<label>Fade IN (minutes)</label>
+<input type="range" id="fadeUp" min="1" max="120" value="10">
+<div id="fadeUpLabel">10 min</div>
 <button class="fade" onclick="startFade('up')">Fade In</button>
 
-<input id="fadeDown" placeholder="Fade OUT seconds">
+<label>Fade OUT (minutes)</label>
+<input type="range" id="fadeDown" min="1" max="120" value="10">
+<div id="fadeDownLabel">10 min</div>
 <button class="fade" onclick="startFade('down')">Fade Out</button>
 
 <div id="fadeStatus"></div>
@@ -399,6 +382,9 @@ button { cursor:pointer; color:white; }
 </div>
 
 <script>
+const FADE_MIN = 1;
+const FADE_MAX = 120;
+
 function baseURL(){ return document.getElementById("urlBox").value.trim(); }
 
 function turnOn(){
@@ -410,11 +396,12 @@ function turnOn(){
 function turnOff(){ fetch(`/turn_off?url=${baseURL()}`); }
 
 function startFade(mode){
-    const duration = mode==='up'
+    const minutes = mode==='up'
         ? document.getElementById("fadeUp").value
         : document.getElementById("fadeDown").value;
 
-    fetch(`/fade?mode=${mode}&duration=${duration}&url=${baseURL()}`);
+    const seconds = minutes * 60;
+    fetch(`/fade?mode=${mode}&duration=${seconds}&url=${baseURL()}`);
 }
 
 function panelPull(){ fetch("/pull"); }
@@ -428,8 +415,8 @@ function updateFade(){
         div.innerHTML="";
         if(f){
             div.innerHTML=`<div class="row">
-            <span>Fading ${f.mode} (${f.remaining}s)<br>Brightness: ${f.brightness}</span>
-            <button onclick="fetch('/stop_fade')">X</button>
+            <span>Fading ${f.mode} (${Math.ceil(f.remaining/60)}m)<br>Brightness: ${f.brightness}</span>
+            <button onclick="fetch('/stop_fade')">Stop</button>
             </div>`;
         }
     });
@@ -471,9 +458,18 @@ function updateBattery(){
         document.getElementById("batHealth").textContent=b.health;
         document.getElementById("batTemp").textContent=b.temperature;
         document.getElementById("batStatus").textContent=b.charging?"Charging ⚡":"Discharging";
-        document.getElementById("batFill").style.width=b.percentage+"%";
+
+        const fill=document.getElementById("batFill");
+        fill.style.width=b.percentage+"%";
+
+        if(b.percentage>50) fill.style.background="#2ea043";
+        else if(b.percentage>20) fill.style.background="#d29922";
+        else fill.style.background="#da3633";
     });
 }
+
+document.getElementById("fadeUp").oninput=e=>fadeUpLabel.innerText=e.target.value+" min";
+document.getElementById("fadeDown").oninput=e=>fadeDownLabel.innerText=e.target.value+" min";
 
 setInterval(updateTimers,1000);
 setInterval(updateFade,1000);
@@ -487,7 +483,6 @@ updateBattery();
 @app.route("/")
 def home():
     return Response(HTML.replace("__DEFAULT_URL__", DEFAULT_URL), mimetype="text/html")
-
 
 if __name__ == "__main__":
     write_flag(SHOULD_I_PULL_FILE, "no")
