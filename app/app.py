@@ -281,9 +281,47 @@ input, button {
     box-sizing:border-box;
 }
 
+/* ---------- FIXED RANGE SLIDER ---------- */
+
 input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
     width:100%;
-    box-sizing:border-box;
+    height:14px;
+    background:transparent;
+    margin:12px 0;
+    padding:0;
+}
+
+/* Track */
+input[type="range"]::-webkit-slider-runnable-track {
+    height:14px;
+    background:#0f141a;
+    border-radius:10px;
+}
+
+input[type="range"]::-moz-range-track {
+    height:14px;
+    background:#0f141a;
+    border-radius:10px;
+}
+
+/* Thumb */
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance:none;
+    height:22px;
+    width:22px;
+    border-radius:50%;
+    background:#6f42c1;
+    margin-top:-4px;
+}
+
+input[type="range"]::-moz-range-thumb {
+    height:22px;
+    width:22px;
+    border-radius:50%;
+    background:#6f42c1;
+    border:none;
 }
 
 button { color:white; cursor:pointer; }
